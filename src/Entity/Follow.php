@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post as PostOperation;
 use App\Repository\FollowRepository;
+use App\State\FollowProcessor;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -21,13 +22,19 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\UniqueConstraint(name: 'unique_follower_following', columns: ['follower_id', 'following_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_USER')"),
-        new Get(security: "is_granted('ROLE_USER')"),
-        new PostOperation(security: "is_granted('ROLE_USER')"),
-        new Delete(security: "is_granted('ROLE_USER') and object.getFollower() == user")
+        new GetCollection(),
+        new Get(),
+        new PostOperation(
+            security: "is_granted('ROLE_USER')",
+            processor: FollowProcessor::class
+        ),
+        new Delete(
+            security: "is_granted('ROLE_USER') and object.getFollower() == user",
+            processor: FollowProcessor::class
+        )
     ],
-    normalizationContext: ['groups' => ['read']],
-    denormalizationContext: ['groups' => ['write']],
+    normalizationContext: ['groups' => ['follow:read']],
+    denormalizationContext: ['groups' => ['follow:write']],
     forceEager: false
 )]
 #[UniqueEntity(fields: ['follower', 'following'], message: 'You are already following this user.')]
@@ -40,23 +47,22 @@ class Follow
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups('read')]
+    #[Groups(['follow:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'following')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['read', 'write'])]
-    #[Assert\NotNull()]
+    #[Groups(['follow:read'])]
     private ?User $follower = null;
 
     #[ORM\ManyToOne(inversedBy: 'followers')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['read', 'write'])]
+    #[Groups(['follow:read', 'follow:write'])]
     #[Assert\NotNull()]
     private ?User $following = null;
 
     #[ORM\Column]
-    #[Groups('read')]
+    #[Groups(['follow:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     public function __construct()

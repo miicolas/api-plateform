@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post as PostOperation;
 use App\Repository\LikeRepository;
+use App\State\LikeProcessor;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -19,13 +20,19 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\UniqueConstraint(name: 'unique_user_post', columns: ['user_id', 'post_id'])]
 #[ApiResource(
     operations: [
-        new GetCollection(security: "is_granted('ROLE_USER')"),
-        new Get(security: "is_granted('ROLE_USER')"),
-        new PostOperation(security: "is_granted('ROLE_USER')"),
-        new Delete(security: "is_granted('ROLE_USER') and object.getUser() == user")
+        new GetCollection(),
+        new Get(),
+        new PostOperation(
+            security: "is_granted('ROLE_USER')",
+            processor: LikeProcessor::class
+        ),
+        new Delete(
+            security: "is_granted('ROLE_USER') and object.getUser() == user",
+            processor: LikeProcessor::class
+        )
     ],
-    normalizationContext: ['groups' => ['read']],
-    denormalizationContext: ['groups' => ['write']],
+    normalizationContext: ['groups' => ['like:read']],
+    denormalizationContext: ['groups' => ['like:write']],
     forceEager: false
 )]
 #[UniqueEntity(fields: ['user', 'post'], message: 'You have already liked this post.')]
@@ -38,21 +45,21 @@ class Like
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups('read')]
+    #[Groups(['like:read'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'likes')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['read', 'write'])]
+    #[Groups(['like:read'])]
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'likes')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups('write')]
+    #[Groups(['like:read', 'like:write'])]
     private ?Post $post = null;
 
     #[ORM\Column]
-    #[Groups('read')]
+    #[Groups(['like:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     public function __construct()
